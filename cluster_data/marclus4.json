@@ -1,0 +1,19 @@
+{
+  "hostnames": [ "extlogin1", "marclus4_login1", "marclus4_login2" ],
+  "country": "NL",
+  "carbon_intensity": 452.07,
+  "default_partition": "normal",
+  "partitions": [
+    {
+      "partition_names": ["normal"],
+      "TDP_per_core": 10.5,
+      "RAM_per_core": 3.2
+    },
+    {
+      "partition_names": ["large"],
+      "TDP_per_core": 10.5,
+      "RAM_per_core": 25.6
+    }
+
+  ]
+}

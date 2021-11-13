@@ -1,0 +1,18 @@
+{
+  "hostnames": [ "marclus5_login1", "marclus5_login2" ],
+  "country": "NL",
+  "carbon_intensity": 452.07,
+  "default_partition": "normal",
+  "partitions": [
+    {
+      "partition_names": ["normal"],
+      "TDP_per_core": 10.417,
+      "RAM_per_core": 4.0
+    },
+    {
+      "partition_names": ["prepro"],
+      "TDP_per_core": 10.417,
+      "RAM_per_core": 32
+    }
+  ]
+}

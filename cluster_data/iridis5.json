@@ -1,0 +1,19 @@
+{
+  "hostnames": [ "cyan51.cluster.local", "cyan52.cluster.local", "cyan53.cluster.local", "cyan54.cluster.local" ],
+  "country": "GB",
+  "carbon_intensity": 253.19,
+  "default_partition": "batch",
+  "partitions": [
+    {
+      "partition_names": ["batch", "largejobs"],
+      "TDP_per_core": 6.25,
+      "RAM_per_core": 4.8
+    },
+ {
+      "partition_names": ["amd"],
+      "TDP_per_core": 4.84375,
+      "RAM_per_core": 4.8
+    }
+
+  ]
+}
