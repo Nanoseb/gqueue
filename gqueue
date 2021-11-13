@@ -1,0 +1,158 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# by slemaire <sebastien.lemaire@soton.ac.uk>
+# this code follows the methodology given in https://doi.org/10.1002/advs.202100707
+
+
+import os
+import subprocess
+import re
+import sys
+import socket
+import json
+
+
+def human_readable(size, decimal_places=1):
+    for unit in ['gCO2e','kgCO2e','Ton CO2e']:
+        if size < 1000.0:
+            break
+        size /= 1000.0
+    return f"{size:.{decimal_places}f} {unit}"
+
+def progress_bar(ratio, size=10):
+    nb_bar = int(ratio*size+0.5)
+    return nb_bar*"█" + (size-nb_bar)*"─"
+    
+
+def duration2sec(duration):
+    d = 0
+    h = 0
+    parse = re.match("([0-9]*)-([0-9]{2}):([0-9]{2}):([0-9]{2})", duration)
+    if parse:
+        d = parse.group(1)
+        h = parse.group(2)
+        m = parse.group(3)
+        s = parse.group(4)
+    else:
+        parse = re.match("^([0-9]+):([0-9]{2}):([0-9]{2})$", duration)
+        if parse:
+            h = parse.group(1)
+            m = parse.group(2)
+            s = parse.group(3)
+        else:
+            parse = re.match("^([0-9]+):([0-9]{2})$", duration)
+            m = parse.group(1)
+            s = parse.group(2)
+    return int(d)*3600*24 + int(h)*3600 + int(m)*60 + int(s)
+
+
+
+class Cluster():
+    def __init__(self, cluster_filename):
+        with open(cluster_filename, "r")  as cluster_file:
+            self.cluster_info = json.load(cluster_file)
+        
+        if "efficiency_coefficient" in self.cluster_info:
+            self.efficiency_coefficient = self.cluster_info["efficiency_coefficient"]
+        else:
+            self.efficiency_coefficient = 1.67
+
+        self.hostnames = self.cluster_info["hostnames"]
+        self.carbon_intensity = float(self.cluster_info["carbon_intensity"])
+
+    def load_partitions(self):
+        self.partition_dict = {}
+        for partition in self.cluster_info["partitions"]:
+            for partition_name in partition["partition_names"]:
+                self.partition_dict[partition_name] = partition
+
+
+class Job():
+    def __init__(self, squeue_line, cluster):
+        squeue_line = squeue_line.split(" ")
+        self.jobID = squeue_line[0]
+        self.status = squeue_line[1]
+        self.is_running = (squeue_line[1] == "RUNNING")
+        self.ncores = int(squeue_line[2])
+        self.nnode = int(squeue_line[3])
+        self.job_name = squeue_line[4]
+        self.total_duration = duration2sec(squeue_line[5])
+        self.elapsed_time = duration2sec(squeue_line[6])
+        self.partition_name = squeue_line[7]
+        self.reason = squeue_line[8]
+        self.start_time = squeue_line[9]
+        self.directory = squeue_line[-1].split("/")[-1]
+
+        self.cluster = cluster
+
+        if self.partition_name in self.cluster.partition_dict:
+            self.partition = self.cluster.partition_dict[self.partition_name]
+        else:
+            self.partition = self.cluster.partition_dict[self.cluster.default_partition]
+
+    def get_co2(self, time):
+        t = time/60/60 #time in hours
+        nc = self.ncores # number of cores
+        Pc = self.partition["TDP_per_core"] # power draw of a computing core
+        uc = 1
+        nm = self.partition["RAM_per_core"] # in GB
+        Pm = 0.3725 #in W/GB
+        PUE = self.cluster.efficiency_coefficient
+        E = t*(nc*Pc*uc + nm*Pm)*PUE*0.001
+
+        return E*self.cluster.carbon_intensity
+
+
+hostname = socket.gethostname()
+for cluster_filename in glob.glob(os.oath.dirname(__file__) + "cluster_data/*.json"):
+    cluster = Cluster(cluster_filename)
+    if hostname in cluster.hostnames:
+        cluster.load_partitions()
+        break
+
+
+squeue_raw = subprocess.check_output(["squeue", "-S", "-T,u,i", "-h", "-u", os.getlogin(), "-o", "%A %T %C %D %j %l %M %P %R %S %Z"]).splitlines()
+job_list = [ Job(line.decode(sys.stdout.encoding), cluster) for line in squeue_raw ]
+
+#display
+
+column_names = ["Directory", "Job name", "Job-ID", "Cores", "Status", "co2", "total co2"]
+
+output = [column_names, ]
+for job in job_list:
+    output_line = []
+    output_line.append(job.directory)
+    output_line.append(job.job_name)
+    output_line.append(str(job.jobID))
+    output_line.append(str(job.ncores))
+    if job.is_running:
+        output_line.append(progress_bar(job.elapsed_time/job.total_duration))
+        output_line.append(human_readable(job.get_co2(job.elapsed_time)))
+    else:
+        output_line.append(job.status)
+        output_line.append("-")
+    output_line.append(human_readable(job.get_co2(job.total_duration)))
+
+    output.append(output_line)
+
+
+is_running_list = [ job.is_running for job in job_list ]
+
+header = True
+widths = [max(map(len, col)) for col in zip(*output)]
+
+for i,row in enumerate(output):
+    output_string = "  ".join((val.ljust(width) for val, width in zip(row, widths)))
+    if header:
+        header = False
+        print(output_string)
+        print("─"*len(output_string))
+    else:
+        if not is_running_list[i-1]:
+            print('\033[2m', end="")
+        print(output_string, end="")
+        print('\033[0m')
+
+print()
+
+
