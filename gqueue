@@ -7,14 +7,28 @@
 import os
 import subprocess
 import re
+from datetime import timedelta, datetime
 import sys
 import glob
 import socket
 import json
 
+def get_co2(time, ncores, TDP_per_core, RAM_per_core, cluster_efficiency_coefficient, cluster_carbon_intensity):
+    t = time/60/60 #time in hours
+    nc = ncores # number of cores
+    Pc = TDP_per_core # power draw of a computing core
+    uc = 1
+    nm = RAM_per_core # in GB
+    Pm = 0.3725 #in W/GB
+    PUE = cluster_efficiency_coefficient
+    E = t*(nc*Pc*uc + nm*Pm)*PUE*0.001
+
+    return E*cluster_carbon_intensity
+
+
 
 def human_readable(size, decimal_places=1):
-    for unit in ['gCO2e','kgCO2e','Ton CO2e']:
+    for unit in ['gCO2e','kgCO2e','TCO2e']:
         if size < 1000.0:
             break
         size /= 1000.0
@@ -58,6 +72,7 @@ class Cluster():
         else:
             self.efficiency_coefficient = 1.67
 
+        self.default_partition = self.cluster_info["default_partition"]
         self.hostnames = self.cluster_info["hostnames"]
         self.carbon_intensity = float(self.cluster_info["carbon_intensity"])
 
@@ -92,16 +107,12 @@ class Job():
             self.partition = self.cluster.partition_dict[self.cluster.default_partition]
 
     def get_co2(self, time):
-        t = time/60/60 #time in hours
-        nc = self.ncores # number of cores
-        Pc = self.partition["TDP_per_core"] # power draw of a computing core
-        uc = 1
-        nm = self.partition["RAM_per_core"] # in GB
-        Pm = 0.3725 #in W/GB
-        PUE = self.cluster.efficiency_coefficient
-        E = t*(nc*Pc*uc + nm*Pm)*PUE*0.001
-
-        return E*self.cluster.carbon_intensity
+        return get_co2(time, 
+                       ncores=self.ncores,
+                       TDP_per_core=self.partition["TDP_per_core"],
+                       RAM_per_core=self.partition["RAM_per_core"],
+                       cluster_efficiency_coefficient=self.cluster.efficiency_coefficient,
+                       cluster_carbon_intensity=self.cluster.carbon_intensity)
 
 
 cluster = None
@@ -159,5 +170,31 @@ for i,row in enumerate(output):
         print('\033[0m')
 
 print()
+
+
+print("Carbon footprint over the last:")
+# report
+for ndays in [1,7,30, 3*30]:
+    today_minus_ndays = (datetime.now() - timedelta(days=ndays)).strftime("%Y-%m-%dT%H:%M:%S")
+    sreport_raw = subprocess.check_output(["sreport", "-P", "-t", "Second", "user", "Top", "TopCount=30000", "Users={}".format(os.getlogin()), "Start={}".format(today_minus_ndays)]).splitlines()
+
+    cpu_s = 0
+    for line in sreport_raw[5:]:
+        cpu_s += int(line.decode(sys.stdout.encoding).split("|")[4])
+
+    co2 = get_co2(cpu_s, 
+                  ncores=1,
+                  TDP_per_core=cluster.partition_dict[cluster.default_partition]["TDP_per_core"],
+                  RAM_per_core=cluster.partition_dict[cluster.default_partition]["RAM_per_core"],
+                  cluster_efficiency_coefficient=cluster.efficiency_coefficient,
+                  cluster_carbon_intensity=cluster.carbon_intensity)
+    if not ndays == 1:
+        plural="s"
+    else:
+        plural=""
+        
+    print("{} day{}:".format(ndays, plural), human_readable(co2))
+
+
 
 
