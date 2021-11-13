@@ -8,6 +8,7 @@ import os
 import subprocess
 import re
 import sys
+import glob
 import socket
 import json
 
@@ -103,13 +104,17 @@ class Job():
         return E*self.cluster.carbon_intensity
 
 
+cluster = None
 hostname = socket.gethostname()
-for cluster_filename in glob.glob(os.oath.dirname(__file__) + "cluster_data/*.json"):
+for cluster_filename in glob.glob(os.path.dirname(__file__) + "/cluster_data/*.json"):
     cluster = Cluster(cluster_filename)
     if hostname in cluster.hostnames:
         cluster.load_partitions()
         break
 
+# Exit if missing cluster configuration: TODO through a proper error
+if not cluster:
+    sys.exit("Missing input file in {}/cluster_data for hostname {}".format(os.path.dirname(__file__), hostname))
 
 squeue_raw = subprocess.check_output(["squeue", "-S", "-T,u,i", "-h", "-u", os.getlogin(), "-o", "%A %T %C %D %j %l %M %P %R %S %Z"]).splitlines()
 job_list = [ Job(line.decode(sys.stdout.encoding), cluster) for line in squeue_raw ]
