@@ -50,7 +50,7 @@ def get_co2(time, ncores, TDP_per_core, RAM_per_core, cluster_efficiency_coeffic
     nc = ncores # number of cores
     Pc = TDP_per_core # power draw of a computing core
     uc = 1
-    nm = RAM_per_core # in GB
+    nm = nc*RAM_per_core # in GB
     Pm = 0.3725 #in W/GB
     PUE = cluster_efficiency_coefficient
     E = t*(nc*Pc*uc + nm*Pm)*PUE*0.001
