@@ -39,7 +39,7 @@ def get_co2(time, ncores, TDP_per_core, RAM_per_core, cluster_efficiency_coeffic
         ratio between the total power drawn of the cluster facility and the power used by computing equipment
 
     cluster_carbon_intensity: float
-        carbon footpring of producing a quantity of energy, in gCO2e.kW/h
+        carbon footpring of producing a quantity of energy, in gCO2e/kWh
 
     Return:
     -------
@@ -267,7 +267,7 @@ def display_joblist(cluster, user_name):
 
 def display_cluster_info(cluster):
     print("Filename: {}".format(cluster.filename))
-    print("Carbon intensity: {} gCO2e.kW/h ({})".format(cluster.carbon_intensity, cluster.country))
+    print("Carbon intensity: {} gCO2e/kWh ({})".format(cluster.carbon_intensity, cluster.country))
     print()
 
     column_names = ["Partition", "TDP per core", "RAM per core", "Footprint per CPU.h"]
