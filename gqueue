@@ -114,86 +114,86 @@ class Job():
                        cluster_efficiency_coefficient=self.cluster.efficiency_coefficient,
                        cluster_carbon_intensity=self.cluster.carbon_intensity)
 
+if __name__ == "__main__":
+    cluster = None
+    hostname = socket.gethostname()
+    for cluster_filename in glob.glob(os.path.dirname(__file__) + "/cluster_data/*.json"):
+        cluster = Cluster(cluster_filename)
+        if hostname in cluster.hostnames:
+            cluster.load_partitions()
+            break
 
-cluster = None
-hostname = socket.gethostname()
-for cluster_filename in glob.glob(os.path.dirname(__file__) + "/cluster_data/*.json"):
-    cluster = Cluster(cluster_filename)
-    if hostname in cluster.hostnames:
-        cluster.load_partitions()
-        break
+    # Exit if missing cluster configuration: TODO through a proper error
+    if not cluster:
+        sys.exit("Missing input file in {}/cluster_data for hostname {}".format(os.path.dirname(__file__), hostname))
 
-# Exit if missing cluster configuration: TODO through a proper error
-if not cluster:
-    sys.exit("Missing input file in {}/cluster_data for hostname {}".format(os.path.dirname(__file__), hostname))
+    squeue_raw = subprocess.check_output(["squeue", "-S", "-T,u,i", "-h", "-u", os.getlogin(), "-o", "%A %T %C %D %j %l %M %P %R %S %Z"]).splitlines()
+    job_list = [ Job(line.decode(sys.stdout.encoding), cluster) for line in squeue_raw ]
 
-squeue_raw = subprocess.check_output(["squeue", "-S", "-T,u,i", "-h", "-u", os.getlogin(), "-o", "%A %T %C %D %j %l %M %P %R %S %Z"]).splitlines()
-job_list = [ Job(line.decode(sys.stdout.encoding), cluster) for line in squeue_raw ]
+    #display
 
-#display
+    column_names = ["Directory", "Job name", "Job-ID", "Cores", "Status", "co2", "total co2"]
 
-column_names = ["Directory", "Job name", "Job-ID", "Cores", "Status", "co2", "total co2"]
+    output = [column_names, ]
+    for job in job_list:
+        output_line = []
+        output_line.append(job.directory)
+        output_line.append(job.job_name)
+        output_line.append(str(job.jobID))
+        output_line.append(str(job.ncores))
+        if job.is_running:
+            output_line.append(progress_bar(job.elapsed_time/job.total_duration))
+            output_line.append(human_readable(job.get_co2(job.elapsed_time)))
+        else:
+            output_line.append(job.status)
+            output_line.append("-")
+        output_line.append(human_readable(job.get_co2(job.total_duration)))
 
-output = [column_names, ]
-for job in job_list:
-    output_line = []
-    output_line.append(job.directory)
-    output_line.append(job.job_name)
-    output_line.append(str(job.jobID))
-    output_line.append(str(job.ncores))
-    if job.is_running:
-        output_line.append(progress_bar(job.elapsed_time/job.total_duration))
-        output_line.append(human_readable(job.get_co2(job.elapsed_time)))
-    else:
-        output_line.append(job.status)
-        output_line.append("-")
-    output_line.append(human_readable(job.get_co2(job.total_duration)))
-
-    output.append(output_line)
-
-
-is_running_list = [ job.is_running for job in job_list ]
-
-header = True
-widths = [max(map(len, col)) for col in zip(*output)]
-
-for i,row in enumerate(output):
-    output_string = "  ".join((val.ljust(width) for val, width in zip(row, widths)))
-    if header:
-        header = False
-        print(output_string)
-        print("─"*len(output_string))
-    else:
-        if not is_running_list[i-1]:
-            print('\033[2m', end="")
-        print(output_string, end="")
-        print('\033[0m')
-
-print()
+        output.append(output_line)
 
 
-print("Carbon footprint over the last:")
-# report
-for ndays in [1,7,30, 3*30]:
-    today_minus_ndays = (datetime.now() - timedelta(days=ndays)).strftime("%Y-%m-%dT%H:%M:%S")
-    sreport_raw = subprocess.check_output(["sreport", "-P", "-t", "Second", "user", "Top", "TopCount=30000", "Users={}".format(os.getlogin()), "Start={}".format(today_minus_ndays)]).splitlines()
+    is_running_list = [ job.is_running for job in job_list ]
 
-    cpu_s = 0
-    for line in sreport_raw[5:]:
-        cpu_s += int(line.decode(sys.stdout.encoding).split("|")[4])
+    header = True
+    widths = [max(map(len, col)) for col in zip(*output)]
 
-    co2 = get_co2(cpu_s, 
-                  ncores=1,
-                  TDP_per_core=cluster.partition_dict[cluster.default_partition]["TDP_per_core"],
-                  RAM_per_core=cluster.partition_dict[cluster.default_partition]["RAM_per_core"],
-                  cluster_efficiency_coefficient=cluster.efficiency_coefficient,
-                  cluster_carbon_intensity=cluster.carbon_intensity)
-    if not ndays == 1:
-        plural="s"
-    else:
-        plural=""
-        
-    print("{} day{}:".format(ndays, plural), human_readable(co2))
+    for i,row in enumerate(output):
+        output_string = "  ".join((val.ljust(width) for val, width in zip(row, widths)))
+        if header:
+            header = False
+            print(output_string)
+            print("─"*len(output_string))
+        else:
+            if not is_running_list[i-1]:
+                print('\033[2m', end="")
+            print(output_string, end="")
+            print('\033[0m')
+
+    print()
+
+
+    print("Carbon footprint over the last:")
+    # report
+    for ndays in [1,7,30, 3*30]:
+        today_minus_ndays = (datetime.now() - timedelta(days=ndays)).strftime("%Y-%m-%dT%H:%M:%S")
+        sreport_raw = subprocess.check_output(["sreport", "-P", "-t", "Second", "user", "Top", "TopCount=30000", "Users={}".format(os.getlogin()), "Start={}".format(today_minus_ndays)]).splitlines()
+
+        cpu_s = 0
+        for line in sreport_raw[5:]:
+            cpu_s += int(line.decode(sys.stdout.encoding).split("|")[4])
+
+        co2 = get_co2(cpu_s, 
+                      ncores=1,
+                      TDP_per_core=cluster.partition_dict[cluster.default_partition]["TDP_per_core"],
+                      RAM_per_core=cluster.partition_dict[cluster.default_partition]["RAM_per_core"],
+                      cluster_efficiency_coefficient=cluster.efficiency_coefficient,
+                      cluster_carbon_intensity=cluster.carbon_intensity)
+        if not ndays == 1:
+            plural="s"
+        else:
+            plural=""
+            
+        print("{} day{}:".format(ndays, plural), human_readable(co2))
 
 
 
