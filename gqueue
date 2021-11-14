@@ -116,6 +116,7 @@ class Cluster():
         else:
             self.efficiency_coefficient = 1.67
 
+        self.country = self.cluster_info["country"]
         self.default_partition = self.cluster_info["default_partition"]
         self.hostnames = self.cluster_info["hostnames"]
         self.carbon_intensity = float(self.cluster_info["carbon_intensity"])
@@ -269,7 +270,7 @@ def display_joblist(cluster, user_name):
 def display_cluster_info(cluster):
     print("Filename: {}".format(cluster.filename))
 
-    print("Carbon intensity: {} gCO2e.kW/h".format(cluster.carbon_intensity))
+    print("Carbon intensity: {} gCO2e.kW/h ({})".format(cluster.carbon_intensity, cluster.country))
     print()
 
     column_names = ["Partition", "TDP per core", "RAM per core", "footprint per CPU.h"]
@@ -281,15 +282,13 @@ def display_cluster_info(cluster):
             output_line.append(partition_name+"*")
         else:
             output_line.append(partition_name)
-        output_line.append(str(cluster.partition_dict[partition_name]["TDP_per_core"]))
-        output_line.append(str(cluster.partition_dict[partition_name]["RAM_per_core"]))
+        output_line.append("{} W".format(cluster.partition_dict[partition_name]["TDP_per_core"]))
+        output_line.append("{} GB".format(cluster.partition_dict[partition_name]["RAM_per_core"]))
         output_line.append("{:.2f} gCO2e/(CPU.h)".format(cluster.get_CPUh_footprint(partition_name)))
 
         output.append(output_line)
 
     print_table(output)
-
-
 
 
 
