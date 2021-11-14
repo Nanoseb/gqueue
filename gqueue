@@ -172,27 +172,51 @@ class Job():
                        cluster_efficiency_coefficient=self.cluster.efficiency_coefficient,
                        cluster_carbon_intensity=self.cluster.carbon_intensity)
 
-if __name__ == "__main__":
-    user = os.getlogin()
-    hostname = socket.gethostname()
 
-    # Load cluster information
-    cluster = None
-    for cluster_filename in glob.glob(os.path.dirname(__file__) + "/cluster_data/*.json"):
-        cluster = Cluster(cluster_filename)
-        if hostname in cluster.hostnames:
-            cluster.load_partitions()
-            break
 
-    # Exit if missing cluster configuration: TODO throw a proper error
-    if not cluster:
-        sys.exit("Missing input file in {}/cluster_data for hostname {}".format(os.path.dirname(__file__), hostname))
+
+#############################################
+#  Display functions
+#############################################
+
+def display_history(cluster, user_name, days_list=[1, 7, 30, 30*3]):
+    """
+    Displays past carbon footprint for a particular user.
+    This is an approximation as the partition is assumed to be the default cluster one.
+    """
+
+    # Display history information
+    print("Carbon footprint over the last:")
+    for ndays in days_list:
+        today_minus_ndays = (datetime.now() - timedelta(days=ndays)).strftime("%Y-%m-%dT%H:%M:%S")
+        sreport_raw = subprocess.check_output(["sreport", "-P", "-t", "Second", "user", "Top", "TopCount=30000", "Users={}".format(user_name), "Start={}".format(today_minus_ndays)]).splitlines()
+
+        cpu_s = 0
+        for line in sreport_raw[5:]:
+            cpu_s += int(line.decode(sys.stdout.encoding).split("|")[4])
+
+        co2 = get_co2(cpu_s, 
+                      ncores=1,
+                      TDP_per_core=cluster.partition_dict[cluster.default_partition]["TDP_per_core"],
+                      RAM_per_core=cluster.partition_dict[cluster.default_partition]["RAM_per_core"],
+                      cluster_efficiency_coefficient=cluster.efficiency_coefficient,
+                      cluster_carbon_intensity=cluster.carbon_intensity)
+        if not ndays == 1:
+            plural="s"
+        else:
+            plural=""
+            
+        print("{} day{}:".format(ndays, plural), human_readable(co2))
+
+
+def display_joblist(cluster, user_name):
+    """
+    Displays the job list currently in the queue and their respective footprint
+    """
 
     # Load information about jobs in queue/running
-    squeue_raw = subprocess.check_output(["squeue", "-S", "-T,u,i", "-h", "-u", user, "-o", "%A %T %C %D %j %l %M %P %R %S %Z"]).splitlines()
+    squeue_raw = subprocess.check_output(["squeue", "-S", "-T,u,i", "-h", "-u", user_name, "-o", "%A %T %C %D %j %l %M %P %R %S %Z"]).splitlines()
     job_list = [ Job(line.decode(sys.stdout.encoding), cluster) for line in squeue_raw ]
-
-
     
     # Display job information
     column_names = ["Directory", "Job name", "Job-ID", "Cores", "Status", "co2", "total co2"]
@@ -234,29 +258,29 @@ if __name__ == "__main__":
 
     print()
 
-    # Display history information
-    print("Carbon footprint over the last:")
-    for ndays in [1,7,30, 3*30]:
-        today_minus_ndays = (datetime.now() - timedelta(days=ndays)).strftime("%Y-%m-%dT%H:%M:%S")
-        sreport_raw = subprocess.check_output(["sreport", "-P", "-t", "Second", "user", "Top", "TopCount=30000", "Users={}".format(user), "Start={}".format(today_minus_ndays)]).splitlines()
-
-        cpu_s = 0
-        for line in sreport_raw[5:]:
-            cpu_s += int(line.decode(sys.stdout.encoding).split("|")[4])
-
-        co2 = get_co2(cpu_s, 
-                      ncores=1,
-                      TDP_per_core=cluster.partition_dict[cluster.default_partition]["TDP_per_core"],
-                      RAM_per_core=cluster.partition_dict[cluster.default_partition]["RAM_per_core"],
-                      cluster_efficiency_coefficient=cluster.efficiency_coefficient,
-                      cluster_carbon_intensity=cluster.carbon_intensity)
-        if not ndays == 1:
-            plural="s"
-        else:
-            plural=""
-            
-        print("{} day{}:".format(ndays, plural), human_readable(co2))
 
 
 
+
+
+if __name__ == "__main__":
+    user_name = os.getlogin()
+    hostname = socket.gethostname()
+
+    # Load cluster information
+    cluster = None
+    for cluster_filename in glob.glob(os.path.dirname(__file__) + "/cluster_data/*.json"):
+        cluster = Cluster(cluster_filename)
+        if hostname in cluster.hostnames:
+            cluster.load_partitions()
+            break
+
+    # Exit if missing cluster configuration: TODO throw a proper error
+    if not cluster:
+        sys.exit("Missing input file in {}/cluster_data for hostname {}".format(os.path.dirname(__file__), hostname))
+
+
+    display_joblist(cluster, user_name)
+
+    display_history(cluster, user_name)
 
