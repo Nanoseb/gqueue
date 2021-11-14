@@ -108,6 +108,8 @@ class Cluster():
     def __init__(self, cluster_filename):
         with open(cluster_filename, "r")  as cluster_file:
             self.cluster_info = json.load(cluster_file)
+
+        self.filename = cluster_filename
         
         if "efficiency_coefficient" in self.cluster_info:
             self.efficiency_coefficient = self.cluster_info["efficiency_coefficient"]
@@ -123,9 +125,11 @@ class Cluster():
         Loads partition data from cluster_info data. Separate function used for performance reasons
         """
         self.partition_dict = {}
+        self.partition_names = []
         for partition in self.cluster_info["partitions"]:
             for partition_name in partition["partition_names"]:
                 self.partition_dict[partition_name] = partition
+                self.partition_names.append(partition_name)
 
     def get_CPUh_footprint(self, partition_name=None):
         """
@@ -209,6 +213,26 @@ def display_history(cluster, user_name, days_list=[1, 7, 30, 30*3]):
         print("{} day{}:".format(ndays, plural), human_readable(co2))
 
 
+
+def print_table(output, row_color=None):
+
+    header = True
+    widths = [max(map(len, col)) for col in zip(*output)]
+
+    for i,row in enumerate(output):
+        output_string = "  ".join((val.ljust(width) for val, width in zip(row, widths)))
+        if header:
+            header = False
+            print(output_string)
+            print("─"*len(output_string))
+        else:
+            if row_color and row_color[i-1]:
+                print('\033[2m', end="")
+            print(output_string, end="")
+            print('\033[0m')
+
+
+
 def display_joblist(cluster, user_name):
     """
     Displays the job list currently in the queue and their respective footprint
@@ -238,25 +262,35 @@ def display_joblist(cluster, user_name):
 
         output.append(output_line)
 
+    is_not_running_list = [ not job.is_running for job in job_list ]
+    print_table(output, is_not_running_list)
 
-    is_running_list = [ job.is_running for job in job_list ]
 
-    header = True
-    widths = [max(map(len, col)) for col in zip(*output)]
+def display_cluster_info(cluster):
+    print("Filename: {}".format(cluster.filename))
 
-    for i,row in enumerate(output):
-        output_string = "  ".join((val.ljust(width) for val, width in zip(row, widths)))
-        if header:
-            header = False
-            print(output_string)
-            print("─"*len(output_string))
-        else:
-            if not is_running_list[i-1]:
-                print('\033[2m', end="")
-            print(output_string, end="")
-            print('\033[0m')
-
+    print("Carbon intensity: {} gCO2e.kW/h".format(cluster.carbon_intensity))
     print()
+
+    column_names = ["Partition", "TDP per core", "RAM per core", "footprint per CPU.h"]
+
+    output = [column_names,  ]
+    for partition_name in cluster.partition_names:
+        output_line = []
+        if partition_name == cluster.default_partition:
+            output_line.append(partition_name+"*")
+        else:
+            output_line.append(partition_name)
+        output_line.append(str(cluster.partition_dict[partition_name]["TDP_per_core"]))
+        output_line.append(str(cluster.partition_dict[partition_name]["RAM_per_core"]))
+        output_line.append("{:.2f} gCO2e/(CPU.h)".format(cluster.get_CPUh_footprint(partition_name)))
+
+        output.append(output_line)
+
+    print_table(output)
+
+
+
 
 
 
@@ -282,5 +316,8 @@ if __name__ == "__main__":
 
     display_joblist(cluster, user_name)
 
+    print()
     display_history(cluster, user_name)
 
+    print()
+    display_cluster_info(cluster)
