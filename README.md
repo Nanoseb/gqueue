@@ -36,6 +36,6 @@ Each cluster information is stored in a .json file in the `cluster_data` folder.
 - `country`: two letter location id used for reference only.
 - `default_partition`: name of the default partition, if data isn't provided for a specific partition in the `partitions` list, the `default_partition` is used.
 - `partitions`: partitions often have different hardware in a cluster, hence, each of them is defined separatly.
- - `partition_names`: list of partition names sharing a given hardware.
- - `TDP_per_core`: in W, this is the TDP of the node CPU divided by its number of cores. The CPU TDP can be retrieved from the CPU manufacturer website and needs to be divided by its number of cores.
- - `RAM_per_core`: in GB, this is the amount of RAM available on a node divided by the number of cores of the given node. 
+  - `partition_names`: list of partition names sharing a given hardware.
+  - `TDP_per_core`: in W, this is the TDP of the node CPU divided by its number of cores. The CPU TDP can be retrieved from the CPU manufacturer website and needs to be divided by its number of cores.
+  - `RAM_per_core`: in GB, this is the amount of RAM available on a node divided by the number of cores of the given node. 
