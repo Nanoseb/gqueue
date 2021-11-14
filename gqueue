@@ -82,6 +82,14 @@ class Cluster():
             for partition_name in partition["partition_names"]:
                 self.partition_dict[partition_name] = partition
 
+    def get_CPUh_footprint(self, partition_name):
+        return get_co2(time=60*60,
+                       ncores=1,
+                       TDP_per_core=self.partition_dict[partition_name]["TDP_per_core"], 
+                       RAM_per_core=self.partition_dict[partition_name]["RAM_per_core"], 
+                       cluster_efficiency_coefficient=self.efficiency_coefficient,
+                       cluster_carbon_intensity=self.carbon_intensity)
+
 
 class Job():
     def __init__(self, squeue_line, cluster):
