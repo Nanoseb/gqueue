@@ -4,7 +4,7 @@ gqueue is a CLI (command line interface) tool that computes carbon footprint of 
 It follows the methodoloty laid out in:
  - Lannelongue, L., Grealey, J., Inouye, M., Green Algorithms: Quantifying the Carbon Footprint of Computation. Adv. Sci. 2021, 8, 2100707. https://doi.org/10.1002/advs.202100707 
 
-and used by [green-algorithms.org].
+and used by http://green-algorithms.org.
 
 
 # Usage
@@ -15,7 +15,7 @@ Each cluster information is stored in a .json file in the `cluster_data` folder.
 
 ```json
 {
-  "hostnames": [ "cyan51.cluster.local", "cyan52.cluster.local", "cyan53.cluster.local", "cyan54.cluster.local" ],
+  "hostnames": [ "cyan51.cluster.local", "cyan52.cluster.local" ],
   "country": "GB",
   "carbon_intensity": 253.19,
   "default_partition": "batch",
@@ -30,7 +30,6 @@ Each cluster information is stored in a .json file in the `cluster_data` folder.
       "TDP_per_core": 4.84375,
       "RAM_per_core": 4.8
     }
-
   ]
 }
 ```
