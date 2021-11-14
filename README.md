@@ -1,10 +1,8 @@
 # gqueue
 
-gqueue is a CLI (command line interface) tool that computes carbon footprint of HPC computations on cluster running slurm. 
-It follows the methodoloty laid out in:
+gqueue is a CLI (command line interface) tool that computes carbon footprint of HPC computations on clusters running slurm. 
+It follows the methodology used by http://green-algorithms.org and laid out in:
  - Lannelongue, L., Grealey, J., Inouye, M., Green Algorithms: Quantifying the Carbon Footprint of Computation. Adv. Sci. 2021, 8, 2100707. https://doi.org/10.1002/advs.202100707 
-
-and used by http://green-algorithms.org.
 
 
 # Usage
@@ -40,4 +38,4 @@ Each cluster information is stored in a .json file in the `cluster_data` folder.
 - `partitions`: partitions often have different hardware in a cluster, hence, each of them is defined separatly.
  - `partition_names`: list of partition names sharing a given hardware.
  - `TDP_per_core`: in W, this is the TDP of the node CPU divided by its number of cores. The CPU TDP can be retrieved from the CPU manufacturer website and needs to be divided by its number of cores.
- - `RAM_per_core`: in GB, this is the amount of RAM on a node divided by the number of cores of the given node. 
+ - `RAM_per_core`: in GB, this is the amount of RAM available on a node divided by the number of cores of the given node. 
