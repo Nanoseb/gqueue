@@ -19,11 +19,10 @@ import json
 
 def get_co2(time, ncores, TDP_per_core, RAM_per_core, cluster_efficiency_coefficient, cluster_carbon_intensity):
     """
-    Get the CO2e in g implementing equation (4) of https://doi.org/10.1002/advs.202100707
+    Get the CO2e in g implementing equation (4) from https://doi.org/10.1002/advs.202100707
 
-    Parameters
-    ----------
-
+    Parameters:
+    -----------
     time: float
         computation duration in seconds
 
@@ -44,8 +43,7 @@ def get_co2(time, ncores, TDP_per_core, RAM_per_core, cluster_efficiency_coeffic
 
     Return:
     -------
-
-    co2: float
+    float
         carbon footprint of the computation in gCO2e
     """
     t = time/60/60 #time in hours
@@ -60,13 +58,13 @@ def get_co2(time, ncores, TDP_per_core, RAM_per_core, cluster_efficiency_coeffic
     return E*cluster_carbon_intensity
 
 
-
 def human_readable(size, decimal_places=1):
     for unit in ['gCO2e','kgCO2e','TCO2e']:
         if size < 1000.0:
             break
         size /= 1000.0
     return f"{size:.{decimal_places}f} {unit}"
+
 
 def progress_bar(ratio, size=10):
     nb_bar = int(ratio*size+0.5)
@@ -75,7 +73,7 @@ def progress_bar(ratio, size=10):
 
 def duration2sec(duration):
     """
-    Converts slurm duration string format in number of seconds. Accepted input format are:
+    Converts slurm duration string format in number of seconds. Accepted input formats are:
     d-HH:MM:SS, HH:MM:SS and MM:SS
     """
 
@@ -244,7 +242,7 @@ def display_joblist(cluster, user_name):
     job_list = [ Job(line.decode(sys.stdout.encoding), cluster) for line in squeue_raw ]
     
     # Display job information
-    column_names = ["Directory", "Job name", "Job-ID", "Cores", "Status", "co2", "total co2"]
+    column_names = ["Directory", "Job name", "Job-ID", "Cores", "Status", "CO2", "Total CO2"]
 
     output = [column_names, ]
     for job in job_list:
@@ -269,11 +267,10 @@ def display_joblist(cluster, user_name):
 
 def display_cluster_info(cluster):
     print("Filename: {}".format(cluster.filename))
-
     print("Carbon intensity: {} gCO2e.kW/h ({})".format(cluster.carbon_intensity, cluster.country))
     print()
 
-    column_names = ["Partition", "TDP per core", "RAM per core", "footprint per CPU.h"]
+    column_names = ["Partition", "TDP per core", "RAM per core", "Footprint per CPU.h"]
 
     output = [column_names,  ]
     for partition_name in cluster.partition_names:
@@ -289,8 +286,6 @@ def display_cluster_info(cluster):
         output.append(output_line)
 
     print_table(output)
-
-
 
 
 
@@ -312,11 +307,11 @@ if __name__ == "__main__":
     if not cluster:
         sys.exit("Missing input file in {}/cluster_data for hostname {}".format(os.path.dirname(__file__), hostname))
 
+    display_cluster_info(cluster)
+    print()
 
     display_joblist(cluster, user_name)
 
     print()
     display_history(cluster, user_name)
 
-    print()
-    display_cluster_info(cluster)
