@@ -7,6 +7,7 @@
 import os
 import subprocess
 import re
+import argparse
 from datetime import timedelta, datetime
 import sys
 import glob
@@ -118,6 +119,10 @@ class Cluster():
         self.default_partition = self.cluster_info["default_partition"]
         self.hostnames = self.cluster_info["hostnames"]
         self.carbon_intensity = float(self.cluster_info["carbon_intensity"])
+
+    def set_carbon_intensity(self, carbon_intensity):
+        self.carbon_intensity = carbon_intensity
+        self.country = "custom"
 
     def load_partitions(self):
         """
@@ -242,7 +247,7 @@ def display_joblist(cluster, user_name):
     job_list = [ Job(line.decode(sys.stdout.encoding), cluster) for line in squeue_raw ]
     
     # Display job information
-    column_names = ["Directory", "Job name", "Job-ID", "Cores", "Status", "CO2", "Total CO2"]
+    column_names = ["Directory", "Job name", "Job-ID", "Partition", "Cores", "Status", "CO2", "Total CO2"]
 
     output = [column_names, ]
     for job in job_list:
@@ -250,6 +255,7 @@ def display_joblist(cluster, user_name):
         output_line.append(job.directory)
         output_line.append(job.job_name)
         output_line.append(str(job.jobID))
+        output_line.append(job.partition_name)
         output_line.append(str(job.ncores))
         if job.is_running:
             output_line.append(progress_bar(job.elapsed_time/job.total_duration))
@@ -292,26 +298,61 @@ def display_cluster_info(cluster):
 
 
 if __name__ == "__main__":
-    user_name = os.getlogin()
-    hostname = socket.gethostname()
+
+    # Argument parsing
+    parser = argparse.ArgumentParser(description='CLI tool to compute CO2 emissions of HPC computations following green-algorithms.org methodology on slurm systems.')
+
+    parser.add_argument('-p', '--partition', action='store_true', default=False,
+                        help='Displays partitions information')
+    parser.add_argument('-j', '--job', action='store_true', default=False,
+                        help='Displays footprint of jobs in queue')
+    parser.add_argument('-r', '--history', action='store_true', default=False,
+                        help='Displays footprint of past jobs over the last 1, 7, 30 and 90 days')
+
+    parser.add_argument('-c', '--cluster', type=str, default=None, 
+                        help='Cluster .json file to use, if omited autodetection is used')
+    parser.add_argument('-u', '--user', type=str, default=None, 
+                        help='User to show analysis about, if omited the current user is used')
+    parser.add_argument('--carbon-intensity', type=float, default=None, 
+                        help='Overwrites carbon internsity information from cluster data, specify value in gCO2/kWh')
+    parser.add_argument('-a', '--all', action='store_true', default=False,
+                        help='Displays everything, equivalent to -p -j -r')
+
+    args = parser.parse_args()
+    if not args.user is None:
+        user_name = args.user
+    else:
+        user_name = os.getlogin()
+
 
     # Load cluster information
     cluster = None
-    for cluster_filename in glob.glob(os.path.dirname(__file__) + "/cluster_data/*.json"):
-        cluster = Cluster(cluster_filename)
-        if hostname in cluster.hostnames:
-            cluster.load_partitions()
-            break
+    if not args.cluster is None and os.path.isfile(args.cluster):
+        cluster = Cluster(args.cluster)
+        cluster.load_partitions()
+    else:
+        hostname = socket.gethostname()
+        for cluster_filename in glob.glob(os.path.dirname(__file__) + "/cluster_data/*.json"):
+            cluster = Cluster(cluster_filename)
+            if hostname in cluster.hostnames:
+                cluster.load_partitions()
+                break
 
-    # Exit if missing cluster configuration: TODO throw a proper error
-    if not cluster:
-        sys.exit("Missing input file in {}/cluster_data for hostname {}".format(os.path.dirname(__file__), hostname))
+        # Exit if missing cluster configuration: TODO throw a proper error
+        if not cluster:
+            sys.exit("Missing input file in {}/cluster_data for hostname {}".format(os.path.dirname(__file__), hostname))
 
-    display_cluster_info(cluster)
-    print()
+    if not args.carbon_intensity is None:
+        cluster.set_carbon_intensity(args.carbon_intensity)
 
-    display_joblist(cluster, user_name)
+    if args.partition or args.all:
+        display_cluster_info(cluster)
+        print()
 
-    print()
-    display_history(cluster, user_name)
+    if args.job or (not args.partition and not args.job and not args.history) or args.all:
+        display_joblist(cluster, user_name)
+        print()
+
+    if args.history or (not args.partition and not args.job and not args.history) or args.all:
+        display_history(cluster, user_name)
 
