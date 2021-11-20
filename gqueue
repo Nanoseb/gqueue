@@ -172,6 +172,22 @@ class Job():
         else:
             self.partition = self.cluster.partition_dict[self.cluster.default_partition]
 
+    def get_url(self):
+        """
+        Generates a sharable url from a running job,
+        Still work in progress as location information isn't known by the script (CI info can't be inputed in the url)
+        """
+        url = "https://green-algorithms.org//?runTime_hour={hours}&runTime_min={minutes}&locationContinent=Europe&locationCountry=Netherlands&locationRegion=NL&PUEradio=Yes&PUE={PUE}&coreType=CPU&numberCPUs={ncores}&CPUmodel=other&tdpCPU={TDP}&memory={total_RAM}&platformType=localServer".format(
+            hours=int(self.elapsed_time/60/60),
+            minutes=int(self.elapsed_time/60 - int(self.elapsed_time/60/60)*60),
+            PUE=self.cluster.efficiency_coefficient,
+            ncores=self.ncores,
+            TDP=self.partition["TDP_per_core"],
+            total_RAM=self.partition["RAM_per_core"]*self.ncores)
+        return url
+
+
+
     def get_co2(self, time):
         return get_co2(time, 
                        ncores=self.ncores,
@@ -272,7 +288,7 @@ def display_joblist(cluster, user_name):
 
 
 def display_cluster_info(cluster):
-    print("Filename: {}".format(cluster.filename))
+    print("Config filename: {}".format(cluster.filename))
     print("Carbon intensity: {} gCO2e/kWh ({})".format(cluster.carbon_intensity, cluster.country))
     print()
 
@@ -345,6 +361,7 @@ if __name__ == "__main__":
     if not args.carbon_intensity is None:
         cluster.set_carbon_intensity(args.carbon_intensity)
 
+    # Displays data
     if args.partition or args.all:
         display_cluster_info(cluster)
         print()
