@@ -15,10 +15,12 @@ import socket
 import json
 
 
+MEMORY_CONSUMPTION = 0.3725 # in W/GB
+DEFAULT_PUE = 1.67 #  (Power Usage Efficiency)
 
 
 
-def get_co2(time, ncores, TDP_per_core, RAM_per_core, cluster_efficiency_coefficient, cluster_carbon_intensity):
+def get_co2(time, ncores, TDP_per_core, RAM_per_core, cluster_PUE, cluster_carbon_intensity):
     """
     Get the CO2e in g implementing equation (4) from https://doi.org/10.1002/advs.202100707
 
@@ -36,7 +38,7 @@ def get_co2(time, ncores, TDP_per_core, RAM_per_core, cluster_efficiency_coeffic
     RAM_per_core: float
         RAM available on a compute node divided by its number of cores, in GB/core
 
-    cluster_efficiency_coefficient: float
+    cluster_PUE: float
         ratio between the total power drawn of the cluster facility and the power used by computing equipment
 
     cluster_carbon_intensity: float
@@ -52,8 +54,8 @@ def get_co2(time, ncores, TDP_per_core, RAM_per_core, cluster_efficiency_coeffic
     Pc = TDP_per_core # power draw of a computing core
     uc = 1
     nm = nc*RAM_per_core # in GB
-    Pm = 0.3725 #in W/GB
-    PUE = cluster_efficiency_coefficient
+    Pm = MEMORY_CONSUMPTION #in W/GB
+    PUE = cluster_PUE
     E = t*(nc*Pc*uc + nm*Pm)*PUE*0.001
 
     return E*cluster_carbon_intensity
@@ -110,10 +112,10 @@ class Cluster():
 
         self.filename = cluster_filename
         
-        if "efficiency_coefficient" in self.cluster_info:
-            self.efficiency_coefficient = self.cluster_info["efficiency_coefficient"]
+        if "PUE" in self.cluster_info:
+            self.PUE = self.cluster_info["PUE"]
         else:
-            self.efficiency_coefficient = 1.67
+            self.PUE = DEFAULT_PUE
 
         self.country = self.cluster_info["country"]
         self.default_partition = self.cluster_info["default_partition"]
@@ -145,7 +147,7 @@ class Cluster():
                        ncores=1,
                        TDP_per_core=self.partition_dict[partition_name]["TDP_per_core"], 
                        RAM_per_core=self.partition_dict[partition_name]["RAM_per_core"], 
-                       cluster_efficiency_coefficient=self.efficiency_coefficient,
+                       cluster_PUE=self.PUE,
                        cluster_carbon_intensity=self.carbon_intensity)
 
 
@@ -180,7 +182,7 @@ class Job():
         url = "https://green-algorithms.org//?runTime_hour={hours}&runTime_min={minutes}&locationContinent=Europe&locationCountry=Netherlands&locationRegion=NL&PUEradio=Yes&PUE={PUE}&coreType=CPU&numberCPUs={ncores}&CPUmodel=other&tdpCPU={TDP}&memory={total_RAM}&platformType=localServer".format(
             hours=int(self.elapsed_time/60/60),
             minutes=int(self.elapsed_time/60 - int(self.elapsed_time/60/60)*60),
-            PUE=self.cluster.efficiency_coefficient,
+            PUE=self.cluster.PUE,
             ncores=self.ncores,
             TDP=self.partition["TDP_per_core"],
             total_RAM=self.partition["RAM_per_core"]*self.ncores)
@@ -193,7 +195,7 @@ class Job():
                        ncores=self.ncores,
                        TDP_per_core=self.partition["TDP_per_core"],
                        RAM_per_core=self.partition["RAM_per_core"],
-                       cluster_efficiency_coefficient=self.cluster.efficiency_coefficient,
+                       cluster_PUE=self.cluster.PUE,
                        cluster_carbon_intensity=self.cluster.carbon_intensity)
 
 
@@ -223,7 +225,7 @@ def display_history(cluster, user_name, days_list=[1, 7, 30, 30*3]):
                       ncores=1,
                       TDP_per_core=cluster.partition_dict[cluster.default_partition]["TDP_per_core"],
                       RAM_per_core=cluster.partition_dict[cluster.default_partition]["RAM_per_core"],
-                      cluster_efficiency_coefficient=cluster.efficiency_coefficient,
+                      cluster_PUE=cluster.PUE,
                       cluster_carbon_intensity=cluster.carbon_intensity)
         if not ndays == 1:
             plural="s"
@@ -290,6 +292,10 @@ def display_joblist(cluster, user_name):
 def display_cluster_info(cluster):
     print("Config filename: {}".format(cluster.filename))
     print("Carbon intensity: {} gCO2e/kWh ({})".format(cluster.carbon_intensity, cluster.country))
+    detail = ""
+    if cluster.PUE == DEFAULT_PUE:
+        detail = " (world average)"
+    print("Power Usage Efficiency: {}".format(cluster.PUE), detail)
     print()
 
     column_names = ["Partition", "TDP per core", "RAM per core", "Footprint per CPU.h"]
