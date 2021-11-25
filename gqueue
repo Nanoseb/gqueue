@@ -16,7 +16,7 @@ import json
 
 
 MEMORY_CONSUMPTION = 0.3725 # in W/GB
-DEFAULT_PUE = 1.67 #  (Power Usage Efficiency)
+DEFAULT_PUE = 1.57 #  (Power Usage Efficiency, worldwide average in 2021 from Uptime Institute)
 
 
 
