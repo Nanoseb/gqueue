@@ -19,7 +19,7 @@ amd        4.84375 W     4.8 GB        2.80 gCO2e/(CPU.h)
 
 Directory  Job name  Job-ID  Partition  Cores  Status      CO2          Total CO2  
 ───────────────────────────────────────────────────────────────────────────────────
-G3         TEST_400  761980  batch      400    ███████───  59.4 kgCO2e   81.6 kgCO2e
+G3         TEST_400  761980  batch      400    ███████───  59.4 kgCO2e  81.6 kgCO2e
 G1         TEST_400  725609  batch      400    PENDING     -            81.6 kgCO2e
 G2         TEST_400  725610  batch      400    PENDING     -            81.6 kgCO2e
 
@@ -38,7 +38,8 @@ Carbon footprint over the last:
 usage: gqueue [-h] [-p] [-j] [-r] [-c CLUSTER] [-u USER]
               [--carbon-intensity CARBON_INTENSITY] [-a]
               
-CLI tool to compute CO2 emissions of HPC computations following green-algorithms.org methodology on slurm systems.
+CLI tool to compute CO2 emissions of HPC computations following green-algorithms.org 
+methodology on slurm systems.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -49,7 +50,8 @@ optional arguments:
                         Cluster .json file to use, if omited autodetection is used
   -u USER, --user USER  User to show analysis about, if omited the current user is used
   --carbon-intensity CARBON_INTENSITY
-                        Overwrites carbon internsity information from cluster data, specify value in gCO2/kWh
+                        Overwrites carbon internsity information from cluster data, specify 
+                        value in gCO2/kWh
   -a, --all             Displays everything, equivalent to -p -j -r
   ```
 
